@@ -1,6 +1,9 @@
 package com.github.stateless.core.services;
 
 import com.github.stateless.core.dto.AuthUserResponse;
+import com.github.stateless.core.model.User;
+import com.github.stateless.infra.AuthenticationException;
+import com.github.stateless.infra.ValidationException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -24,6 +27,8 @@ import static org.springframework.util.ObjectUtils.isEmpty;
 public class JwtService {
 
     public static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60;
+    private static final String EMPTY_SPACE = " ";
+    private static final Integer TOKEN_INDEX = 1;
 
     @Value("${app.token.secret-key}")
     private String secretKey;
@@ -32,6 +37,30 @@ public class JwtService {
         var tokenClains = getAllClaimsFromToken(token);
         var userId = Integer.valueOf((String) tokenClains.get("id"));
         return new AuthUserResponse(userId, (String) tokenClains.get("username"));
+    }
+
+    public void validateAccessToken(String token) throws AuthenticationException {
+        var accessToken = extractToken(token);
+        try {
+            Jwts
+                    .parserBuilder()
+                    .build()
+                    .parseClaimsJwt(accessToken)
+                    .getBody()
+                    .getSubject();
+        } catch (Exception ex) {
+            throw new AuthenticationException("Invalid token: " + ex.getMessage());
+        }
+    }
+
+    private String extractToken(String token) {
+        if (isEmpty(token)) {
+            throw new ValidationException("The access token was not informed.");
+        }
+        if (token.contains(EMPTY_SPACE)) {
+            return token.split(EMPTY_SPACE)[TOKEN_INDEX];
+        }
+        return token;
     }
 
     //retrieve username from jwt token
@@ -74,6 +103,15 @@ public class JwtService {
     private String doGenerateToken(Map<String, Object> claims, String subject) {
 
         return Jwts.builder().setClaims(claims).setSubject(subject).setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY * 1000))
+                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+    }
+
+    public String createToken(User user) {
+        var data = new HashMap<String, String>();
+        data.put("id", user.getId().toString());
+        data.put("username", user.getUsername());
+        return Jwts.builder().setClaims(data).setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY * 1000))
                 .signWith(SignatureAlgorithm.HS512, secretKey).compact();
     }
