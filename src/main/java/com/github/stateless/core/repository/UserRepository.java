@@ -1,10 +1,12 @@
 package com.github.stateless.core.repository;
 
-import com.github.stateless.core.model.User;
+import com.github.stateless.core.model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByUsername(String username);
+@Repository
+public interface UserRepository extends JpaRepository<Usuario, Long> {
+    Optional<Usuario> findByUsername(String username);
 }
